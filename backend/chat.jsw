@@ -1,0 +1,5 @@
+// backend/chat.jsw
+export async function getChatResponse(message) {
+    // Placeholder for OpenAI API integration
+    return "Hello, how can I assist you with your mental health needs?";
+}
