@@ -1,0 +1,34 @@
+import wixData from 'wix-data';
+
+export async function getTherapistAvailability(staffId) {
+  try {
+    const scheduleItems = await wixData.query("Bookings/Schedule")
+      .limit(1)
+      .find();
+    // Debug: sample schedule document
+    console.log("Bookings/Schedule Schema Sample:", scheduleItems.items[0] || null);
+
+    const availabilityResponse = await wixData.query("Bookings/Schedule")
+      .eq("resourceId", staffId)
+      .ge("startDateTime", new Date())
+      .find();
+    // Debug: availability raw items
+    console.log("Availability Response:", availabilityResponse.items);
+
+    const availableSlots = availabilityResponse.items.map(item => ({
+      startDateTime: item.startDateTime,
+      endDateTime:   item.endDateTime
+    }));
+
+    return availableSlots;
+  } catch (error) {
+    // Debug: fallback to mock availability
+    console.error("Error fetching availability:", error);
+    return [
+      {
+        startDateTime: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+        endDateTime:   new Date(Date.now() + 25 * 60 * 60 * 1000).toISOString()
+      }
+    ];
+  }
+}

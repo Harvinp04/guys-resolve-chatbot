@@ -1,52 +1,39 @@
-console.log("Chatbot page code loaded at top level");
+import { fetch } from 'wix-fetch';
+import { getSecret } from 'wix-secrets-backend';
 
-import { getChatResponse } from 'backend/chat.jsw';
+export async function getChatResponse(message) {
+  try {
+    const apiKey = await getSecret('CLAUDE_API_KEY');
+    const model = 'claude-3-7-sonnet-20250219';
+    const apiUrl = 'https://api.anthropic.com/v1/messages';
+    const systemPrompt = `You are the Guys Resolve AI bot, designed to assist with booking therapy sessions, recommending books, and providing therapeutic tools.`;
+    const combined = `${systemPrompt}\nUser: ${message || 'Hello'}`;
 
-$w.onReady(() => {
-    console.log("Chatbot page onReady executed");
-    console.log("Elements available:", $w("#input4"), $w("#button1"), $w("#chatDisplay"), $w("#loadingAnimation"));
+    const requestBody = {
+      model,
+      max_tokens: 1024,
+      messages: [ { role: 'user', content: combined } ]
+    };
 
-    try {
-        $w("#loadingAnimation").hide(); 
-        console.log("Hid loadingAnimation");
-    } catch (error) {
-        console.error("Error hiding loadingAnimation:", error);
-    }
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01'
+      },
+      body: JSON.stringify(requestBody)
+    });
+    const rawText = await response.clone().text();
+    console.log('🎯 Anthropic status:', response.status, rawText);
 
-    try {
-        $w("#chatDisplay").hide(); 
-        console.log("Hid chatDisplay");
-    } catch (error) {
-        console.error("Error hiding chatDisplay:", error);
-    }
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
-    try {
-        $w("#button1").onClick(async (event) => {
-            console.log("Send button clicked");
-            const userMessage = $w("#input4").value;
-            if (!userMessage) return;
-            if (!$w("#chatDisplay").isVisible) {
-                $w("#chatDisplay").show();
-            }
-            let currentChat = $w("#chatDisplay").text || "Chat starts here...";
-            $w("#chatDisplay").text = currentChat + "\nYou: " + userMessage;
-            $w("#loadingAnimation").show();
+    const data = await response.json();
+    return data.content[0].text.trim();
 
-            try {
-                const response = await getChatResponse(userMessage);
-                console.log("Chatbot Response:", response);
-                $w("#chatDisplay").text = $w("#chatDisplay").text + "\nBot: " + response;
-            } catch (error) {
-                console.error("Error:", error);
-                $w("#chatDisplay").text = $w("#chatDisplay").text + "\nBot: Oops, something went wrong!";
-            } finally {
-                $w("#loadingAnimation").hide();
-            }
-
-            $w("#input4").value = ""; 
-        });
-        console.log("Set onClick handler for button1");
-    } catch (error) {
-        console.error("Error setting onClick handler for button1:", error);
-    }
-}); 
+  } catch (err) {
+    console.error('Claude API Error:', err);
+    return 'Oops, something went wrong! Please try again later.';
+  }
+}
